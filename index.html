@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Pháo hoa & Background Tùy chọn</title>
+<style>
+    /* ========================================================= */
+    /* --- BỎ ĐƯỜNG LINK ẢNH CỦA BẠN VÀO DÒNG DƯỚI ĐÂY --- */
+    /* ========================================================= */
+    :root {
+        /* Thay thế LINK_ANH_CUA_BAN_TAI_DAY bằng link ảnh thật */
+        --bg-image: url(/hahaa.jpg);
+    }
+    /* ========================================================= */
+
+    body {
+        margin: 0;
+        overflow: hidden;
+        /* Màu nền đen dự phòng nếu ảnh lỗi */
+        background-color: #000; 
+        
+        /* Thiết lập Ảnh nền */
+        background-image: var(--bg-image);
+        background-size: cover;        /* Phủ kín toàn màn hình */
+        background-position: center;   /* Căn giữa ảnh */
+        background-repeat: no-repeat;  /* Không lặp lại ảnh */
+        background-attachment: fixed;  /* Cố định ảnh khi cuộn (nếu có) */
+        
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Lớp phủ mờ (Overlay) để pháo hoa và chữ nổi bật hơn */
+    body::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        /* Độ mờ của lớp phủ (0.4 = 40%). Tăng số này nếu ảnh nền quá sáng */
+        background-color: rgba(0, 0, 0, 0.4); 
+        z-index: 0;
+    }
+
+    canvas {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1; /* Pháo hoa ở trên lớp phủ */
+    }
+
+    /* Hiệu ứng Chữ chạy CHẬM */
+    .message {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        font-size: 45px;
+        font-weight: 800;
+        color: #ffffff;
+        pointer-events: none;
+        z-index: 10; /* Chữ ở trên cùng */
+        
+        /* Đổ bóng chữ đa tầng rực rỡ */
+        text-shadow: 
+            0 0 10px rgba(255, 255, 255, 0.9),
+            0 0 20px rgba(255, 215, 0, 0.7),
+            0 0 30px rgba(255, 165, 0, 0.5),
+            0 0 40px rgba(255, 69, 0, 0.3);
+        
+        /* Tốc độ: 15 giây */
+        animation: moveUpSlow 15s linear infinite;
+        opacity: 0;
+        letter-spacing: 2px;
+    }
+
+    @keyframes moveUpSlow {
+        0% {
+            bottom: -100px;
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        15% {
+            opacity: 1;
+        }
+        85% {
+            opacity: 1;
+        }
+        100% {
+            bottom: 100%;
+            opacity: 0;
+            transform: scale(1.1);
+        }
+    }
+</style>
+</head>
+<body>
+
+<canvas id="fireworks"></canvas>
+<div class="message">✨ CHIẾN DỊCH THÀNH CÔNG RỰC RỠ ✨</div>
+
+<script>
+// Giữ nguyên logic pháo hoa cao cấp từ bản trước
+const canvas = document.getElementById("fireworks");
+const ctx = canvas.getContext("2d");
+
+let width, height;
+function setCanvasSize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+setCanvasSize();
+window.addEventListener("resize", setCanvasSize);
+
+let fireworks = [];
+let particles = [];
+
+const random = (min, max) => Math.random() * (max - min) + min;
+
+// Bảng màu sang trọng
+const colorPalettes = [
+    { hue: 45, variation: 10 },  // Gold
+    { hue: 200, variation: 5, saturation: 10 }, // Silver
+    { hue: 340, variation: 20 }, // Pink/Ruby
+    { hue: 280, variation: 15 }, // Purple
+    { hue: 25, variation: 10 }   // Copper/Orange
+];
+
+class Firework {
+    constructor() {
+        this.x = random(width * 0.2, width * 0.8);
+        this.y = height;
+        this.targetY = random(height * 0.1, height * 0.4);
+        this.palette = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+        this.speed = random(12, 16);
+        this.angle = -Math.PI / 2 + random(-0.05, 0.05);
+        this.velocity = {
+            x: Math.cos(this.angle) * this.speed,
+            y: Math.sin(this.angle) * this.speed
+        };
+        this.alive = true;
+    }
+
+    update() {
+        this.velocity.y += 0.12;
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        if (this.velocity.y >= 0 || this.y <= this.targetY) {
+            this.explode();
+            this.alive = false;
+        }
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.fill();
+    }
+
+    explode() {
+        for (let i = 0; i < 180; i++) {
+            let p_hue = this.palette.hue + random(-this.palette.variation, this.palette.variation);
+            let p_sat = this.palette.saturation || 100;
+            particles.push(new Particle(this.x, this.y, p_hue, p_sat));
+        }
+    }
+}
+
+class Particle {
+    constructor(x, y, hue, sat) {
+        this.x = x;
+        this.y = y;
+        this.angle = random(0, Math.PI * 2);
+        this.speed = random(1, 10);
+        this.velocity = {
+            x: Math.cos(this.angle) * this.speed,
+            y: Math.sin(this.angle) * this.speed
+        };
+        this.friction = 0.95;
+        this.gravity = 0.15;
+        this.hue = hue;
+        this.sat = sat;
+        this.alpha = 1;
+        this.decay = random(0.01, 0.02);
+        this.history = [];
+        this.historyLength = Math.floor(random(8, 18));
+    }
+
+    update() {
+        this.history.push({x: this.x, y: this.y});
+        if(this.history.length > this.historyLength) this.history.shift();
+        this.velocity.x *= this.friction;
+        this.velocity.y *= this.friction;
+        this.velocity.y += this.gravity;
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        this.alpha -= this.decay;
+    }
+
+    draw() {
+        if (this.alpha <= 0) return;
+        ctx.beginPath();
+        for (let i = 0; i < this.history.length; i++) {
+            let point = this.history[i];
+            let op = (i / this.history.length) * this.alpha;
+            ctx.strokeStyle = `hsla(${this.hue}, ${this.sat}%, 75%, ${op})`;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            if (i === 0) ctx.moveTo(point.x, point.y);
+            else ctx.lineTo(point.x, point.y);
+        }
+        ctx.stroke();
+    }
+}
+
+function animate() {
+    // 1. CHÚ Ý: Thay đổi cách xóa nền để ảnh nền hiện ra
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Xóa sạch canvas để nền body hiện ra, không dùng fillRect mờ
+    ctx.clearRect(0, 0, width, height); 
+    
+    // 2. Vẽ pháo hoa với hiệu ứng hòa trộn 'lighter'
+    ctx.globalCompositeOperation = 'lighter';
+
+    if (Math.random() < 0.04) fireworks.push(new Firework());
+
+    fireworks = fireworks.filter(fw => {
+        fw.update();
+        fw.draw();
+        return fw.alive;
+    });
+
+    particles = particles.filter(p => {
+        p.update();
+        p.draw();
+        return p.alpha > 0;
+    });
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>
